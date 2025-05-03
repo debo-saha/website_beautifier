@@ -18,6 +18,7 @@ import json
 import uuid
 import cv2
 import numpy as np
+import tensorflow
 from keras.applications.vgg16 import VGG16, preprocess_input
 from keras.preprocessing import image
 from sklearn.metrics.pairwise import cosine_similarity

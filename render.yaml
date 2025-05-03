@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: website_beautifier
+    runtime: python
+    buildCommand: |
+      pip install -r requirements.txt
+      playwright install
+    startCommand: gunicorn backend.main:app
+    envVars:
+      - key: PORT
+        value: 5000
