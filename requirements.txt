@@ -4,11 +4,11 @@ Flask==3.1.0
 flask_cors==5.0.1
 gunicorn==23.0.0
 keras==3.9.0
-numpy==2.2.5
+numpy>=1.26.0,<2.2.0 
 opencv_python==4.11.0.86
 pymongo==4.12.1
 python-dotenv==1.1.0
 Requests==2.32.3
 scikit_learn==1.6.1
 tensorflow==2.19.0
-playwright
+playwright==1.52.0
