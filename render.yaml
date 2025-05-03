@@ -1,11 +1,15 @@
 services:
   - type: web
-    name: website_beautifier
-    runtime: python
-    buildCommand: |
-      pip install -r requirements.txt
-      playwright install
-    startCommand: gunicorn backend.main:app
-    envVars:
-      - key: PORT
-        value: 5000
+    name: frontend
+    env: node
+    buildCommand: cd frontend && npm install
+    startCommand: cd frontend && npm run start
+    branch: main
+    plan: free
+  - type: web
+    name: backend
+    env: python
+    buildCommand: cd backend && pip install -r requirements.txt
+    startCommand: cd backend && gunicorn main:app --workers 4 --bind 0.0.0.0:$PORT
+    branch: main
+    plan: free
