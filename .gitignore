@@ -1,0 +1,4 @@
+.env
+captures/
+.vscode/
+frontend/app/abc/
