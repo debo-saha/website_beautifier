@@ -10,5 +10,6 @@ pymongo==4.12.1
 python-dotenv==1.1.0
 Requests==2.32.3
 scikit_learn==1.6.1
-tensorflow==2.19.0
+tensorflow-cpu==2.15.0
 playwright==1.52.0
+certifi==2023.7.22
