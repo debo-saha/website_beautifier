@@ -32,6 +32,7 @@ from urllib.request import urlretrieve
 import shutil
 import os
 from dotenv import load_dotenv
+import gunicorn
 load_dotenv()
 # --- your app setup (unchanged) ---
 app = Flask(__name__, template_folder="template")
