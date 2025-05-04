@@ -39,8 +39,8 @@ CORS(app)
 # --- Cloudinary config (unchanged) ---
 cloudinary.config( 
   cloud_name = 'dbjsgdva8', 
-  api_key = '721484968887235', 
-  api_secret = '02uVqFiSkRwrYJpCfgMkC3beZl8' 
+  api_key = os.getenv('CLOUDINARY_KEY'), 
+  api_secret = os.getenv('CLOUDINARY_SECRET') 
 )
 
 # --- MongoDB Atlas config ---
