@@ -1,9 +1,11 @@
 import React from "react";
 import Spline from "@splinetool/react-spline/next";
 import Link from "next/link";
+import SplashCursor from "./SplashCursor";
 export default function Home() {
   return (
     <>
+    <SplashCursor/>
       <main className="min-h-screen bg-black text-white">
         <section className="relative h-screen flex items-center justify-center overflow-hidden">
           {/* Spline Background */}

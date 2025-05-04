@@ -9,6 +9,7 @@ import {
     SignedOut,
     UserButton,
 } from "@clerk/nextjs";
+import Link from "next/link";
 
 export default function Navbar() {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -25,11 +26,11 @@ export default function Navbar() {
                 <div className="flex items-center justify-between h-16">
                     {/* Logo */}
                     <div className="flex-shrink-0">
-                        <a href="#" className="flex items-center hover:scale-105 transition-transform duration-300">
+                        <Link href="/" className="flex items-center hover:scale-105 transition-transform duration-300">
                             <span className="text-white text-xl font-bold tracking-tight">
                                 Web Beautifier
                             </span>
-                        </a>
+                        </Link>
                     </div>
 
                     {/* Mobile Menu Button */}

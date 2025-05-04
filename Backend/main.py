@@ -1,200 +1,95 @@
+# from pymongo import MongoClient
+
+# mongo_client = MongoClient("mongodb+srv://amitmukherjeecse308:peTpA38Q1A4xyCV8@cluster0.2t23wsj.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")
+# db = mongo_client["web_beauty_db"]
+# collection = db["Web_Beautifier"]
+# mongo_images = list(collection.find({"component_type": "header"}))
+# print(mongo_images)
+
+
+
+# --- your imports (unchanged) ---
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+import os
 import asyncio
 from playwright.async_api import async_playwright
 import json
-import os
 import uuid
 import cv2
 import numpy as np
 from keras.applications.vgg16 import VGG16, preprocess_input
 from keras.preprocessing import image
 from sklearn.metrics.pairwise import cosine_similarity
+import glob
 import cloudinary
 import cloudinary.uploader
 import requests
-from urllib.request import urlretrieve
-from pymongo import MongoClient
 import shutil
-from dotenv import load_dotenv
-
+import certifi
+from pathlib import Path
+from pymongo import MongoClient
+from urllib.request import urlretrieve
+from dotenv import load_dotenv     # --- your app setup (unchanged) ---
 load_dotenv()
-
-app = Flask(__name__)
+import os
+app = Flask(__name__, template_folder="template")
 CORS(app)
 
-# Cloudinary config
-cloudinary.config(
-    cloud_name=os.getenv('CLOUDINARY_CLOUD'),
-    api_key=os.getenv('CLOUDINARY_KEY'),
-    api_secret=os.getenv('CLOUDINARY_SECRET')
+# --- Cloudinary config (unchanged) ---
+cloudinary.config( 
+  cloud_name = 'dbjsgdva8', 
+  api_key = '721484968887235', 
+  api_secret = '02uVqFiSkRwrYJpCfgMkC3beZl8' 
 )
 
-# MongoDB config
-mongo_client = MongoClient(os.getenv('MONGO_URI'))
+# --- MongoDB Atlas config ---
+mongo_client = MongoClient("mongodb+srv://amitmukherjeecse308:peTpA38Q1A4xyCV8@cluster0.2t23wsj.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")
 db = mongo_client["web_beauty_db"]
 collection = db["Web_Beautifier"]
 
-# AI config
+# --- LLM AI Config ---
 AI_API_URL = "https://api.openai.com/v1/chat/completions"
-AI_API_KEY = os.getenv('API_KEY')
+AI_API_KEY = os.getenv("API_KEY")
 MODEL = "gpt-3.5-turbo"
 
-# Initialize VGG16 model
-vgg_model = VGG16(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
-
-class WebsiteCapture:
-    async def capture_sections(self, url, folder_name):
-        async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
-            context = await browser.new_context(
-                viewport={'width': 1280, 'height': 800},
-                user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.82 Safari/537.36'
-            )
-            page = await context.new_page()
-            
-            try:
-                os.makedirs(f"captures/{folder_name}", exist_ok=True)
-                
-                # Load the page
-                await self._load_page_with_retries(page, url)
-                
-                # Capture and save each section separately
-                sections = {
-                    "header": await self._capture_section(page, "header", folder_name),
-                    "hero": await self._capture_hero_section(page, folder_name),
-                    "footer": await self._capture_section(page, "footer", folder_name)
-                }
-                
-                # Save each section to separate JSON files
-                for section_name, section_data in sections.items():
-                    if section_data:
-                        with open(f"captures/{folder_name}/{section_name}_data.json", "w") as f:
-                            json.dump(section_data, f)
-                
-                return {
-                    "status": "success",
-                    "folder": folder_name,
-                    "sections": {k: v is not None for k, v in sections.items()}
-                }
-            
-            except Exception as e:
-                return {"status": "error", "message": str(e)}
-            finally:
-                await browser.close()
-
-    async def _load_page_with_retries(self, page, url, timeout=60000):
-        try:
-            await page.goto(url, wait_until="networkidle", timeout=timeout)
-        except:
-            try:
-                await page.goto(url, wait_until="load", timeout=timeout)
-            except:
-                await page.goto(url, wait_until="domcontentloaded", timeout=timeout)
-
-    async def _capture_section(self, page, section_type, folder_name):
-        selectors = {
-            "header": ["header", "[role='banner']", ".header", "#header"],
-            "footer": ["footer", "[role='contentinfo']", ".footer", "#footer"]
-        }
-        
-        for selector in selectors[section_type]:
-            try:
-                element = await page.query_selector(selector)
-                if element and await element.is_visible():
-                    box = await element.bounding_box()
-                    if box and box['width'] > 50 and box['height'] > 20:
-                        path = f"captures/{folder_name}/{section_type}.png"
-                        await element.screenshot(path=path)
-                        return {
-                            "screenshot": path,
-                            "text": await self._clean_text(element),
-                            "dimensions": box
-                        }
-            except:
-                continue
-        return None
-
-    async def _capture_hero_section(self, page, folder_name):
-        hero_selectors = [
-            ".hero", ".banner", ".jumbotron", "#hero", "#banner",
-            ".hero-section", ".main-banner", ".intro", ".landing-hero"
-        ]
-        
-        for selector in hero_selectors:
-            try:
-                element = await page.query_selector(selector)
-                if element and await element.is_visible():
-                    box = await element.bounding_box()
-                    if box and box['width'] > 300 and box['height'] > 200:
-                        path = f"captures/{folder_name}/hero.png"
-                        await element.screenshot(path=path)
-                        return {
-                            "screenshot": path,
-                            "text": await self._clean_text(element),
-                            "dimensions": box
-                        }
-            except:
-                continue
-        
-        # Fallback to largest section at top
-        sections = await page.query_selector_all("section, div, main")
-        hero_candidate = None
-        max_area = 0
-        
-        for section in sections:
-            if await section.is_visible():
-                box = await section.bounding_box()
-                if box:
-                    area = box['width'] * box['height']
-                    if box['y'] < 500 and area > max_area and area > 100000:
-                        max_area = area
-                        hero_candidate = section
-        
-        if hero_candidate:
-            path = f"captures/{folder_name}/hero.png"
-            await hero_candidate.screenshot(path=path)
-            return {
-                "screenshot": path,
-                "text": await self._clean_text(hero_candidate),
-                "dimensions": await hero_candidate.bounding_box(),
-                "is_fallback": True
-            }
-        
-        return None
-
-    async def _clean_text(self, element):
-        text = await element.inner_text()
-        return ' '.join(text.split()).strip()[:1000]
-
+# --- upload image to cloudinary ---
 def upload_to_cloudinary(image_path):
-    try:
-        response = cloudinary.uploader.upload(image_path)
-        return response["secure_url"]
-    except Exception as e:
-        print(f"Cloudinary upload error: {e}")
-        return None
+    response = cloudinary.uploader.upload(image_path)
+    return response["secure_url"]
 
-def create_ai_prompt(section_data):
-    prompt_template = """Analyze this website section and suggest improvements:
+# --- create prompt from data.json ---
+def create_ai_prompt(data):
+    prompt_template = """As a web design expert, analyze these sections and suggest improvements focusing on:
+1. Clarity - Make text instantly understandable
+2. Impact - Increase emotional engagement  
+3. Brevity - Reduce wordiness without losing meaning
+4. Call-to-action - Where applicable
+
+Provide specific suggestions in bullet points for each section.
+
+{content}"""
     
-Section Text:
-{text}
-
-Focus on:
-1. Clarity
-2. Visual hierarchy  
-3. Call-to-action effectiveness
-4. Mobile responsiveness
-
-Provide specific suggestions:"""
+    sections_info = []
+    for section in ['header', 'hero', 'footer']:
+        if section in data:
+            sections_info.append(
+                f"👉 {section.upper()} SECTION:\n"
+                f"{data[section]['text']}\n"
+                f"Current issues: (analyze below)\n"
+            )
     
-    return prompt_template.format(text=section_data.get('text', ''))
+    return prompt_template.format(content="\n".join(sections_info))
 
-def get_ai_suggestions(section_data):
+
+# --- fetch text suggestion using OpenAI ---
+def get_ai_suggestions(json_path):
+    if not os.path.exists(json_path): return None
+    with open(json_path, 'r') as f:
+        data = json.load(f)
+    prompt = create_ai_prompt(data)
+
     try:
-        prompt = create_ai_prompt(section_data)
-        
         headers = {
             "Authorization": f"Bearer {AI_API_KEY}",
             "Content-Type": "application/json"
@@ -207,32 +102,88 @@ def get_ai_suggestions(section_data):
                 "model": MODEL,
                 "messages": [{"role": "user", "content": prompt}],
                 "temperature": 0.7
-            },
-            timeout=30
+            }
         )
         response.raise_for_status()
-        return response.json()['choices'][0]['message']['content']
+        ai_data = response.json()
+        return ai_data['choices'][0]['message']['content']
     except Exception as e:
         print(f"AI Error: {e}")
         return None
 
-def extract_vgg_features(img_path):
-    try:
-        img = image.load_img(img_path, target_size=(224, 224))
-        img_array = image.img_to_array(img)
-        img_array = np.expand_dims(img_array, axis=0)
-        img_array = preprocess_input(img_array)
-        features = vgg_model.predict(img_array)
-        return features.flatten()
-    except Exception as e:
-        print(f"VGG feature extraction error: {e}")
+# --- capture logic (unchanged) ---
+class WebsiteCapture:
+    async def capture_sections(self, url, folder_name):
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            page = await browser.new_page()
+            try:
+                os.makedirs(f"captures/{folder_name}", exist_ok=True)
+                await page.goto(url, wait_until="networkidle", timeout=180000)
+
+                for section in ["header", "hero", "footer"]:
+                    element = await self._find_section(page, section)
+                    if element:
+                        screenshot_path = f"captures/{folder_name}/{section}.png"
+                        await element.screenshot(path=screenshot_path)
+                        text = await element.inner_text()
+                        text = ' '.join(text.split()).strip()[:500]
+
+                        section_data = {
+                            "screenshot": screenshot_path,
+                            "text": text
+                        }
+
+                        with open(f"captures/{folder_name}/{section}.json", "w") as f:
+                            json.dump({section: section_data}, f)
+
+                return {"status": "success", "folder": folder_name}
+            except Exception as e:
+                return {"status": "error", "message": str(e)}
+            finally:
+                await browser.close()
+
+    async def _find_section(self, page, section_type):
+        selectors = {
+            "header": ["header", "[role='banner']", ".header", "#header", ".site-header", ".page-header", ".main-header", ".top-header", "nav", ".navbar", ".nav-bar"],
+            "hero": [".hero", ".banner", ".jumbotron", "#hero", "#banner", ".hero-section", ".main-banner", ".intro", ".landing-hero", ".top-section", ".hero-container", ".cover", ".splash"],
+            "footer": ["footer", "[role='contentinfo']", ".footer", "#footer", ".site-footer", ".page-footer", ".main-footer", ".bottom-footer", ".footer-container"]
+        }
+
+        for selector in selectors[section_type]:
+            element = await page.query_selector(selector)
+            if element and await element.is_visible():
+                return element
         return None
+
+# --- VGG + SIFT matching (updated to return score) ---
+vgg_model = VGG16(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
+
+def extract_vgg_features(img_path):
+    img = image.load_img(img_path, target_size=(224, 224))
+    img_array = image.img_to_array(img)
+    img_array = np.expand_dims(img_array, axis=0)
+    img_array = preprocess_input(img_array)
+    features = vgg_model.predict(img_array)
+    return features.flatten()
+
+def sift_similarity(img1_path, img2_path):
+    img1 = cv2.imread(img1_path, cv2.IMREAD_GRAYSCALE)
+    img2 = cv2.imread(img2_path, cv2.IMREAD_GRAYSCALE)
+    if img1 is None or img2 is None:
+        return 0
+    sift = cv2.SIFT_create()
+    kp1, des1 = sift.detectAndCompute(img1, None)
+    kp2, des2 = sift.detectAndCompute(img2, None)
+    if des1 is None or des2 is None:
+        return 0
+    bf = cv2.BFMatcher(cv2.NORM_L2, crossCheck=True)
+    matches = bf.match(des1, des2)
+    return len(matches)
 
 def find_top_matches(component_type, query_image_path, top_n=3):
     results = []
     query_vgg_features = extract_vgg_features(query_image_path)
-    if query_vgg_features is None:
-        return []
 
     mongo_images = list(collection.find({"component_type": component_type}))
     temp_dir = f"temp_{component_type}"
@@ -246,98 +197,93 @@ def find_top_matches(component_type, query_image_path, top_n=3):
         try:
             urlretrieve(image_url, filename)
 
+            min_sift = 0     # or use the lowest in your dataset
+            max_sift = 1000  # or use the highest in your dataset
+           # Extract features
             db_vgg_features = extract_vgg_features(filename)
-            if db_vgg_features is None:
-                continue
+            vgg_score = cosine_similarity([query_vgg_features], [db_vgg_features])[0][0]
 
-            similarity = float(cosine_similarity([query_vgg_features], [db_vgg_features])[0][0])
-            results.append({
-                "url": image_url, 
-                "score": round(similarity * 100, 2)
-            })
+            # Compute and normalize sift_score
+            sift_score = sift_similarity(query_image_path, filename)
+            normalized_sift = (sift_score - min_sift) / (max_sift - min_sift)
+            normalized_sift = max(0, min(1, normalized_sift))  # Clamp between 0 and 1
+
+            # Combine scores with appropriate weights
+            vgg_weight = 0.6
+            sift_weight = 0.4
+            combined_score = (vgg_score * vgg_weight + normalized_sift * sift_weight) * 100
+            results.append({"url": image_url, "score": round(float(combined_score), 2)})
+
         except Exception as e:
             print(f"Error processing {image_url}: {e}")
-        finally:
-            if os.path.exists(filename):
-                os.remove(filename)
 
     results.sort(key=lambda x: x["score"], reverse=True)
     return results[:top_n]
 
+# --- async runner ---
 def run_async(coro):
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     return loop.run_until_complete(coro)
 
-@app.route('/capture', methods=['POST'])
+# --- main route with integrated AI ---
+@app.route('/capture', methods=['POST','GET'])
 def capture_and_match():
     data = request.get_json()
     urls = data.get('urls', [])
-    
     if len(urls) != 3:
         return jsonify({"error": "Exactly 3 URLs required"}), 400
-    
-    # Clean previous captures
     if os.path.exists("captures"):
         shutil.rmtree("captures")
     os.makedirs("captures", exist_ok=True)
-    
     folders = [f"site_{i+1}" for i in range(3)]
     capturer = WebsiteCapture()
-    
-    all_results = []
-    
+
+    capture_results = []
+    final_output = {}
+
     for url, folder in zip(urls, folders):
-        try:
-            # Capture website sections
-            capture_result = run_async(capturer.capture_sections(url, folder))
-            if capture_result["status"] != "success":
-                all_results.append({
-                    "url": url,
-                    "status": "error",
-                    "message": capture_result.get("message", "Capture failed")
-                })
-                continue
-            
-            folder_path = f"captures/{folder}"
-            sections_data = {}
-            
-            # Process each section from its separate JSON file
-            for section in ["header", "hero", "footer"]:
-                json_path = f"{folder_path}/{section}_data.json"
-                if os.path.exists(json_path):
-                    with open(json_path, 'r') as f:
-                        section_data = json.load(f)
-                    
-                    # Upload image to Cloudinary
-                    cloudinary_url = upload_to_cloudinary(section_data["screenshot"])
-                    
-                    # Get matches and suggestions
-                    matches = find_top_matches(section, section_data["screenshot"])
-                    ai_suggestions = get_ai_suggestions(section_data)
-                    
-                    sections_data[section] = {
-                        "image_url": cloudinary_url,
-                        "text_content": section_data.get("text", ""),
-                        "top_matches": matches,
-                        "suggestions": ai_suggestions or "No suggestions available"
-                    }
-            
-            all_results.append({
-                "url": url,
-                "status": "success",
-                "sections": sections_data
-            })
+        result = run_async(capturer.capture_sections(url, folder))
+        capture_results.append({
+            "url": url,
+            "folder": folder,
+            "status": result.get("status", "error"),
+            "message": result.get("message", "")
+        })
+
+        site_result = {}
+        folder_path = f"captures/{folder}"
+       
+
+        ai_section_suggestions = {}
         
-        except Exception as e:
-            all_results.append({
-                "url": url,
-                "status": "error",
-                "message": str(e)
-            })
+        for section in ["header", "hero", "footer"]:
+            data_json_path = os.path.join(folder_path, f"{section}.json")
+            llm_text_output = get_ai_suggestions(data_json_path) or ""
+            ai_section_suggestions[section] = llm_text_output
 
-    return jsonify({"results": all_results})
+        for section in ["header", "hero", "footer"]:
+            query_image_path = f"{folder_path}/{section}.png"
+            if os.path.exists(query_image_path):
+                query_image_url = upload_to_cloudinary(query_image_path)
+                top_matches = find_top_matches(section, query_image_path)
 
+                site_result[section] = {
+                    "captured_image_url": query_image_url,
+                    "top_matches": top_matches,
+                    "suggested_text": ai_section_suggestions.get(section, "")
+                }
+
+        final_output[folder] = site_result
+    json_data=json.dumps(final_output,indent=2 )
+    print(json_data)
+    return jsonify({
+        "capture_results": capture_results,
+        "matching_results": final_output
+    })
+
+# --- start ---
 if __name__ == '__main__':
     os.makedirs("captures", exist_ok=True)
     app.run(host='0.0.0.0', port=5000)
+

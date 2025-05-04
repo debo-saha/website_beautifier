@@ -1,6 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import {
+  GlobeIcon,
+  SparklesIcon,
+  ArrowRightIcon,
+} from "@heroicons/react/24/outline";
 
 export default function Page() {
   const [urls, setUrls] = useState(["", "", ""]);
@@ -50,48 +55,79 @@ export default function Page() {
       >
         <form
           onSubmit={handleSubmit}
-          className={`space-y-4 mx-auto ${
-            analysisData ? "max-w-4xl" : "max-w-2xl w-full px-4"
+          className={`mx-auto ${
+            analysisData ? "max-w-4xl" : "max-w-4xl w-full px-4"
           }`}
         >
-          <div className="space-y-6">
-            {urls.map((url, i) => (
-              <input
-                key={i}
-                type="text"
-                placeholder={`Website ${i + 1}`}
-                value={url}
-                onChange={(e) => handleInputChange(i, e.target.value)}
-                className="w-full p-4 bg-gray-900 border-2 border-gray-700 rounded-xl
-                          focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500
-                          transition-all duration-300 hover:border-gray-600 text-gray-100 text-lg
-                          shadow-lg"
-              />
+          <div className="text-center space-y-6 mb-16">
+            <h1 className="text-5xl font-bold bg-gradient-to-r from-blue-400 to-purple-300 bg-clip-text text-transparent animate-gradient-flow">
+              MultiSite Analyzer
+            </h1>
+            <p className="text-gray-400/90 text-lg font-light max-w-2xl mx-auto">
+              Compare UI elements and content across three websites with
+              AI-powered analysis
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6 mb-8">
+            {urls?.map((url, i) => (
+              <div key={i} className="group relative">
+                <div className="absolute inset-0.5 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-xl blur opacity-0 group-hover:opacity-30 transition-opacity duration-300" />
+                <div className="relative h-full bg-gray-900/50 border-2 border-gray-800 rounded-xl p-1 hover:border-gray-700 transition-colors">
+                  <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-800">
+                    <SparklesIcon className="w-5 h-5 text-purple-400" />
+                    <span className="font-medium text-gray-300">
+                      Website {i + 1}
+                    </span>
+                  </div>
+                  <div className="p-4">
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="url"
+                        placeholder="https://example.com"
+                        value={url}
+                        onChange={(e) => handleInputChange(i, e.target.value)}
+                        className="w-full bg-transparent placeholder-gray-600 focus:outline-none text-gray-200 text-lg font-light"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
             ))}
           </div>
+
+          <div className="text-center">
           <button
-            type="submit"
-            disabled={isLoading}
-            className={`px-8 py-4 font-bold rounded-xl w-full 
-                        bg-gradient-to-r from-purple-600 to-blue-500 hover:from-purple-700 hover:to-blue-600
-                        transition-all duration-300 transform hover:scale-[1.02] shadow-2xl
-                        ${isLoading ? "opacity-75 cursor-not-allowed" : ""}`}
-          >
-            {isLoading ? (
-              <div className="flex items-center justify-center space-x-3">
-                <div className="w-5 h-5 border-2 border-white rounded-full animate-spin border-t-transparent" />
-                <span className="text-lg">Analyzing...</span>
-              </div>
-            ) : (
-              <span className="text-lg">Submit</span>
-            )}
-          </button>
+  type="submit"
+  disabled={isLoading}
+  className={`inline-flex items-center justify-center gap-3 px-8 py-4 text-lg font-semibold rounded-xl 
+              bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600
+              transition-all duration-300 transform hover:scale-[1.02] shadow-2xl
+              ${isLoading ? "opacity-80 cursor-not-allowed" : ""}`}
+>
+  {isLoading ? (
+    <>
+      <div className="flex items-center justify-center space-x-2">
+        <div className="w-3 h-3 bg-blue-300 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+        <div className="w-3 h-3 bg-purple-300 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+        <div className="w-3 h-3 bg-blue-300 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+      </div>
+      <span>Analyzing...</span>
+    </>
+  ) : (
+    <>
+      Start Analysis
+      <ArrowRightIcon className="w-5 h-5 mt-0.5" />
+    </>
+  )}
+</button>
+          </div>
         </form>
       </div>
 
       {error && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 p-4 bg-red-900/50 border border-red-700 rounded-xl animate-pulse">
-          <p className="text-red-400">⚠ {error}</p>
+          <p className="text-red-400">⚠️ {error}</p>
         </div>
       )}
 
@@ -103,7 +139,7 @@ export default function Page() {
               📸 Capture Results
             </h2>
             <div className="grid gap-6 md:grid-cols-3">
-              {analysisData.capture_results.map((result, idx) => (
+              {analysisData.capture_results?.map((result, idx) => (
                 <div
                   key={idx}
                   className="bg-gray-900/50 p-6 rounded-2xl border border-gray-800
@@ -142,7 +178,7 @@ export default function Page() {
               🧠 Matching Results
             </h2>
             <div className="space-y-12">
-              {Object.entries(analysisData.matching_results).map(
+              {Object.entries(analysisData.matching_results)?.map(
                 ([siteKey, siteSections]) => (
                   <div
                     key={siteKey}
@@ -154,7 +190,7 @@ export default function Page() {
                     </h3>
 
                     <div className="space-y-10">
-                      {Object.entries(siteSections).map(
+                      {Object.entries(siteSections)?.map(
                         ([sectionKey, sectionData]) => (
                           <div
                             key={sectionKey}
@@ -171,8 +207,7 @@ export default function Page() {
                                 <div className="relative rounded-2xl border-2 border-gray-800 shadow-2xl overflow-hidden">
                                   <img
                                     src={sectionData.captured_image_url}
-                                    alt={`${siteKey} ${sectionKey}`           
-                        }
+                                    alt={`${siteKey} ${sectionKey}`}
                                     className="w-full h-80 object-cover transform transition-transform duration-500 hover:scale-105"
                                   />
                                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
@@ -185,8 +220,8 @@ export default function Page() {
                                 <p className="text-lg font-medium text-gray-400 mb-6">
                                   Top Matches:
                                 </p>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                                  {sectionData.top_matches.map((match, idx) => (
+                                <div className="grid grid-cols-1  gap-8">
+                                  {sectionData.top_matches?.map((match, idx) => (
                                     <div
                                       key={idx}
                                       className="relative cursor-pointer transform transition-transform hover:scale-[1.03]"
@@ -194,7 +229,7 @@ export default function Page() {
                                         setSelectedImage(match.url)
                                       }
                                     >
-                                      <div className="aspect-auto rounded-2xl border-2 border-gray-800 overflow-hidden shadow-xl">
+                                      <div className=" rounded-2xl border-2 border-gray-800 overflow-hidden shadow-xl">
                                         <img
                                           src={match.url}
                                           alt={`Match ${idx + 1}`}
@@ -235,6 +270,7 @@ export default function Page() {
               )}
             </div>
           </section>
+          
         </div>
       )}
 
