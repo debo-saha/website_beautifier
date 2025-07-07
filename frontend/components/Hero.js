@@ -1,9 +1,11 @@
 import React from "react";
 import Spline from "@splinetool/react-spline/next";
-
+import Link from "next/link";
+import SplashCursor from "./SplashCursor";
 export default function Home() {
   return (
     <>
+    <SplashCursor/>
       <main className="min-h-screen bg-black text-white">
         <section className="relative h-screen flex items-center justify-center overflow-hidden">
           {/* Spline Background */}
@@ -31,7 +33,9 @@ export default function Home() {
             </p>
             <div className="flex justify-center space-x-4">
               <button className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 rounded-full transform transition-all duration-300 hover:scale-105">
+                <Link href="/beautify">
                 Get Started
+                </Link>
               </button>
               <button className="border border-purple-500 text-purple-300 hover:bg-purple-500/10 px-8 py-3 rounded-full transform transition-all duration-300 hover:scale-105">
                 Learn More
